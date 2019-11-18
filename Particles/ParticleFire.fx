@@ -119,7 +119,7 @@ Particle StreamOutVS(Particle vin)
 // to particle system, as the destroy/spawn rules will be 
 // different.
 [maxvertexcount(2)]
-void StreamOutGS(point Particle gin[1],
+void StreamOutGS(point Particle gin[1], uint primID : SV_PrimitiveID,
                  inout PointStream<Particle> ptStream)
 {	
 	gin[0].Age += gTimeStep;
@@ -140,7 +140,7 @@ void StreamOutGS(point Particle gin[1],
 			p.SizeW       = float2(3.0f, 3.0f);
 			p.Age         = 0.0f;
 			p.Type        = PT_FLARE;
-            p.RotationSpeed = RandUnitVec3(1.0f).x;
+            p.RotationSpeed = RandUnitVec3(primID).xyz;
 			
 
 			ptStream.Append(p);
@@ -223,7 +223,7 @@ struct GeoOut
 
 // The draw GS just expands points into camera facing quads.
 [maxvertexcount(4)]
-void DrawGS(point VertexOut gin[1], 
+void DrawGS(point VertexOut gin[1],
             inout TriangleStream<GeoOut> triStream)
 {	
 	// do not draw emitter particles.
