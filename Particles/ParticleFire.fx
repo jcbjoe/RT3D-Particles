@@ -97,6 +97,7 @@ float3 RandUnitVec3(float offset)
 
 #define PT_EMITTER 0
 #define PT_FLARE 1
+#define PT_SMOKE 2
  
 struct Particle
 {
@@ -105,7 +106,7 @@ struct Particle
 	float2 SizeW       : SIZE;
 	float Age          : AGE;
 	uint Type          : TYPE;
-	float RotationSpeed : ROTATEIONSPEED;
+    float RotationSpeed : ROTATIONSPEED;
 };
   
 Particle StreamOutVS(Particle vin)
@@ -129,8 +130,8 @@ void StreamOutGS(point Particle gin[1], uint primID : SV_PrimitiveID,
 		// time to emit a new particle?
 		if( gin[0].Age > 0.005f )
 		{
-			float3 vRandom = RandUnitVec3(0.0f);
-			float3 vRandom2 = RandUnitVec3(0.01f);
+            float3 vRandom = RandUnitVec3(primID);
+            float3 vRandom2 = RandUnitVec3(primID);
 			vRandom.x *= 0.5f;
 			vRandom.z *= 0.5f;
 			
@@ -140,10 +141,10 @@ void StreamOutGS(point Particle gin[1], uint primID : SV_PrimitiveID,
 			p.SizeW       = float2(3.0f, 3.0f);
 			p.Age         = 0.0f;
 			p.Type        = PT_FLARE;
-            p.RotationSpeed = RandUnitVec3(primID).xyz;
+            p.RotationSpeed = vRandom.x * 5;
 			
 
-			ptStream.Append(p);
+		    ptStream.Append(p);
 			
 			// reset the time to emit
 			gin[0].Age = 0.0f;
@@ -155,14 +156,14 @@ void StreamOutGS(point Particle gin[1], uint primID : SV_PrimitiveID,
 	else
 	{
 		// Specify conditions to keep particle; this may vary from system to system.
-		if( gin[0].Age <= 1.0f )
+		if( gin[0].Age <= 5.0f )
 			ptStream.Append(gin[0]);
 	}		
 }
 
 GeometryShader gsStreamOut = ConstructGSWithSO( 
 	CompileShader( gs_5_0, StreamOutGS() ), 
-	"POSITION.xyz; VELOCITY.xyz; SIZE.xy; AGE.x; TYPE.x; ROTATEIONSPEED.x;");
+	"POSITION.xyz; VELOCITY.xyz; SIZE.xy; AGE.x; TYPE.x; ROTATIONSPEED.x;");
 	
 technique11 StreamOutTech
 {
@@ -203,7 +204,7 @@ VertexOut DrawVS(Particle vin)
 	vout.PosW = 0.5f*t*t*gAccelW + t*vin.InitialVelW + vin.InitialPosW;
 	
 	// fade color with time
-	float opacity = 1.0f - smoothstep(0.0f, 1.0f, t/1.0f);
+	float opacity = 1.0f - smoothstep(0.0f, 1.0f, t/4.0f);
 	vout.Color = float4(1.0f, 1.0f, 1.0f, opacity);
 	
 	vout.SizeW = vin.SizeW;
@@ -219,6 +220,7 @@ struct GeoOut
 	float4 PosH  : SV_Position;
 	float4 Color : COLOR;
 	float2 Tex   : TEXCOORD;
+    float Type : TYPE;
 };
 
 // The draw GS just expands points into camera facing quads.
@@ -259,15 +261,16 @@ void DrawGS(point VertexOut gin[1],
 			gout.PosH  = mul(v[i], gViewProj);
 			gout.Tex   = gQuadTexC[i];
 			gout.Color = gin[0].Color;
+            gout.Type = 0;
 			triStream.Append(gout);
 			
-		}	
-	}
+		}
+    }
 }
 
 float4 DrawPS(GeoOut pin) : SV_TARGET
 {
-	return gTexArray.Sample(samLinear, float3(pin.Tex, 0) )*pin.Color;
+    return gTexArray.Sample(samLinear, float3(pin.Tex, 0)) * pin.Color;
 }
 
 technique11 DrawTech
